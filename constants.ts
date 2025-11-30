@@ -1,6 +1,19 @@
 
 import { WorkflowStep, AppConfig } from './types';
 
+// ============================================================================
+// ☁️ 雲端同步設定 (Cloud Sync Config)
+// 請填入您的 JSONBin.io 資訊以啟用跨裝置同步功能。
+// 若留空或無效，系統將自動降級為本機儲存 (LocalStorage) 模式。
+// ============================================================================
+export const JSONBIN_CONFIG = {
+  // 1. 在 https://jsonbin.io/ 註冊並取得 API Key (X-Master-Key)
+  API_KEY: '', // 例如: '$2a$10$AbCdEfGhIjKlMnOpQrStUvWxYz1234567890'
+  
+  // 2. 建立一個新的 Bin (設為 Private)，並複製 Bin ID
+  BIN_ID: '',  // 例如: '656xxxxxxxxxxxxxxxxx'
+};
+
 export const DEFAULT_APP_CONFIG: AppConfig = {
   version: '2025/12/01',
   authority: '本文件之最新版本以本院「深耕計畫辦公室 A1 組」發布為準',
