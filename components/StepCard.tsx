@@ -14,7 +14,7 @@ const StepCard: React.FC<StepCardProps> = ({ step, onClick, isDisabled = false, 
   return (
     // Updated Margins: ml-12 (48px) on mobile, ml-24 (96px) on desktop
     // Removed mb-8 so parent flex gap controls spacing
-    <div className="ml-12 md:ml-24 relative group">
+    <div className="ml-12 md:ml-24 relative group transition-all duration-300 ease-in-out">
       {/* Connector Circle 
           Mobile: -left-[40px] -> 48px - 40px = starts at 8px. Center at 8+20=28px.
           Desktop: -left-[64px] -> 96px - 64px = starts at 32px. Center at 32+20=52px.
