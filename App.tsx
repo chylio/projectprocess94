@@ -1,26 +1,18 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Cloud, CloudOff, Lock, LogOut, CheckCircle2, Save, RefreshCw, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Cloud, CloudOff, Lock, LogOut, CheckCircle2, Save, RefreshCw, Loader2, Settings } from 'lucide-react';
 import { WORKFLOW_DATA, DEFAULT_APP_CONFIG, JSONBIN_CONFIG } from './constants';
 import { WorkflowStep, AmountFilter, AppConfig } from './types';
 import StepCard from './components/StepCard';
 import FilterCard from './components/FilterCard';
 import DetailModal from './components/DetailModal';
 import LoginModal from './components/LoginModal';
+import SettingsModal from './components/SettingsModal';
 import Footer from './components/Footer';
 
 const STORAGE_KEY = 'admin_workflow_data_v1';
 const CONFIG_STORAGE_KEY = 'admin_workflow_config_v1';
-
-// Helper to check if cloud config is valid
-const isCloudConfigured = () => {
-  return (
-    JSONBIN_CONFIG.API_KEY && 
-    JSONBIN_CONFIG.API_KEY.length > 10 && 
-    JSONBIN_CONFIG.BIN_ID && 
-    JSONBIN_CONFIG.BIN_ID.length > 5
-  );
-};
+const ADMIN_KEY_STORAGE = 'admin_master_key';
+const CUSTOM_BIN_ID_STORAGE = 'custom_bin_id';
 
 const App: React.FC = () => {
   // 1. Data States
@@ -33,18 +25,32 @@ const App: React.FC = () => {
   
   // 3. System States
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminApiKey, setAdminApiKey] = useState<string>(''); // Key for WRITING (Private)
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [isCloudMode, setIsCloudMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Helper to get effective Bin ID (Local override > Constant)
+  const getEffectiveBinId = () => {
+      const custom = localStorage.getItem(CUSTOM_BIN_ID_STORAGE);
+      return custom || JSONBIN_CONFIG.BIN_ID;
+  };
 
   // Load Data on Mount
   useEffect(() => {
     const initData = async () => {
       setIsLoading(true);
       
-      // Step A: Load from LocalStorage first (Fast render)
+      // A. Check for Admin Key in local storage
+      const savedAdminKey = localStorage.getItem(ADMIN_KEY_STORAGE);
+      if (savedAdminKey) {
+          setAdminApiKey(savedAdminKey);
+      }
+
+      // B. Load from LocalStorage first (Fast render)
       try {
         const savedData = localStorage.getItem(STORAGE_KEY);
         const savedConfig = localStorage.getItem(CONFIG_STORAGE_KEY);
@@ -54,31 +60,40 @@ const App: React.FC = () => {
         console.error("Local read error:", error);
       }
 
-      // Step B: If Cloud is configured, fetch latest
-      if (isCloudConfigured()) {
+      // C. Cloud Fetch (READ ONLY)
+      const targetBinId = getEffectiveBinId();
+      
+      if (targetBinId && targetBinId.length > 5) {
         setIsCloudMode(true);
         try {
-          const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`, {
-            headers: {
-              'X-Master-Key': JSONBIN_CONFIG.API_KEY,
-              'X-Bin-Meta': 'false' // We just want the data body
-            }
+          const headers: Record<string, string> = {
+            'X-Bin-Meta': 'false'
+          };
+          
+          if (JSONBIN_CONFIG.READ_ACCESS_KEY) {
+            headers['X-Access-Key'] = JSONBIN_CONFIG.READ_ACCESS_KEY;
+          }
+
+          const response = await fetch(`https://api.jsonbin.io/v3/b/${targetBinId}/latest`, {
+            headers: headers
           });
           
           if (response.ok) {
             const cloudData = await response.json();
-            // Assuming structure: { workflowData: [...], appConfig: {...} }
             if (cloudData.workflowData) {
               setWorkflowData(cloudData.workflowData);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData.workflowData)); // Sync to local
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData.workflowData)); 
             }
             if (cloudData.appConfig) {
               setAppConfig(cloudData.appConfig);
-              localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(cloudData.appConfig)); // Sync to local
+              localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(cloudData.appConfig));
             }
-            console.log("Cloud sync successful");
+            console.log("Cloud sync successful (Read)");
           } else {
             console.warn("Cloud fetch returned:", response.status);
+            if (response.status === 401 || response.status === 403) {
+                console.error("Access Denied: Please check if Bin is Public or Read Key is valid.");
+            }
           }
         } catch (e) {
           console.error("Cloud fetch failed:", e);
@@ -91,25 +106,43 @@ const App: React.FC = () => {
     initData();
   }, []);
 
+  // Save Function - Requires Admin API Key
   const saveToCloud = async (newData: WorkflowStep[], newConfig: AppConfig) => {
-    if (!isCloudConfigured()) return;
+    // Priority: State key > LocalStorage key
+    const keyToUse = adminApiKey || localStorage.getItem(ADMIN_KEY_STORAGE);
+    const targetBinId = getEffectiveBinId();
+
+    if (!targetBinId) {
+        console.warn("Cannot save: Missing Bin ID");
+        return;
+    }
+
+    if (!keyToUse) {
+        alert("無法儲存至雲端：找不到 Master Key。\n請至「系統設定」輸入您的 JSONBin Master Key。");
+        setIsSettingsOpen(true);
+        return;
+    }
     
     setIsSaving(true);
     try {
-      await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`, {
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${targetBinId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-Master-Key': JSONBIN_CONFIG.API_KEY
+          'X-Master-Key': keyToUse
         },
         body: JSON.stringify({
           workflowData: newData,
           appConfig: newConfig
         })
       });
+      
+      if (!response.ok) {
+          throw new Error(`Save failed: ${response.status}`);
+      }
     } catch (e) {
       console.error("Cloud save failed:", e);
-      alert("雲端存檔失敗，但已儲存於本機。請檢查網路連線。");
+      alert("雲端存檔失敗！請檢查您的 Internet 連線或 Master Key 是否正確。");
     } finally {
       setIsSaving(false);
     }
@@ -124,34 +157,22 @@ const App: React.FC = () => {
     setSelectedStep(null);
   };
 
-  // Update Workflow Steps
   const handleUpdateStep = (updatedStep: WorkflowStep) => {
     const newData = workflowData.map(step => 
       step.id === updatedStep.id ? updatedStep : step
     );
     
-    // 1. Update State (Optimistic)
     setWorkflowData(newData);
     setSelectedStep(updatedStep);
-
-    // 2. Save Local
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
     triggerSaveToast();
-
-    // 3. Save Cloud
     saveToCloud(newData, appConfig);
   };
 
-  // Update Footer Config
   const handleUpdateConfig = (newConfig: AppConfig) => {
-    // 1. Update State
     setAppConfig(newConfig);
-
-    // 2. Save Local
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
     triggerSaveToast();
-
-    // 3. Save Cloud
     saveToCloud(workflowData, newConfig);
   };
 
@@ -160,17 +181,21 @@ const App: React.FC = () => {
     setTimeout(() => setShowSaveToast(false), 2000);
   };
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (key: string) => {
     setIsAdmin(true);
+    if (key) setAdminApiKey(key);
   };
 
   const handleLogout = () => {
     setIsAdmin(false);
+    setAdminApiKey('');
+    // We don't remove the key from LocalStorage here intentionally, 
+    // so the admin doesn't have to re-enter it next time on the same machine.
     setSelectedStep(null);
   };
 
   const handleResetData = async () => {
-    if (window.confirm('確定要重置所有資料 (含流程內容與版本資訊) 回到預設值嗎？\n注意：這將會覆蓋雲端與本機的資料！')) {
+    if (window.confirm('確定要重置所有資料 (含流程內容與版本資訊) 回到預設值嗎？此動作將覆蓋雲端資料。')) {
       const resetData = WORKFLOW_DATA;
       const resetConfig = DEFAULT_APP_CONFIG;
       
@@ -179,9 +204,7 @@ const App: React.FC = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(resetData));
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(resetConfig));
       
-      if (isCloudConfigured()) {
-        await saveToCloud(resetData, resetConfig);
-      }
+      await saveToCloud(resetData, resetConfig);
       
       window.location.reload();
     }
@@ -207,7 +230,6 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">行政作業流程</h1>
             
-            {/* Sync Status Badge */}
             <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-colors
               ${isCloudMode 
                 ? 'bg-blue-50 text-blue-600 border-blue-100' 
@@ -225,13 +247,24 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             {isAdmin ? (
                <>
                  <span className="hidden md:flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
                     <CheckCircle2 size={12} />
                     管理者模式
                  </span>
+                 
+                 <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  title="系統設定"
+                 >
+                   <Settings size={18} />
+                 </button>
+
+                 <div className="w-px h-4 bg-slate-300 mx-1 hidden md:block"></div>
+
                  <button 
                   onClick={handleResetData}
                   className="hidden md:block text-xs text-slate-400 hover:text-red-500 underline mr-2"
@@ -243,7 +276,7 @@ const App: React.FC = () => {
                     className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     <LogOut size={14} />
-                    <span>登出</span>
+                    <span className="hidden md:inline">登出</span>
                  </button>
                </>
             ) : (
@@ -261,8 +294,6 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 py-12 relative">
-        
-        {/* Vertical Line */}
         <div className="absolute left-[28px] md:left-[52px] top-[68px] bottom-32 w-0.5 bg-slate-200"></div>
 
         {/* Loading Overlay */}
@@ -300,23 +331,25 @@ const App: React.FC = () => {
           })}
         </div>
 
-        {/* Footer Area */}
         <Footer 
           config={appConfig} 
           isAdmin={isAdmin} 
           onUpdate={handleUpdateConfig} 
         />
-
       </main>
 
-      {/* Login Modal */}
       <LoginModal 
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)}
         onLoginSuccess={handleLoginSuccess}
       />
 
-      {/* Detail Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentBinId={getEffectiveBinId()}
+      />
+
       <DetailModal 
         isOpen={!!selectedStep} 
         onClose={handleCloseModal} 

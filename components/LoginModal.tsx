@@ -1,24 +1,34 @@
-
-import React, { useState } from 'react';
-import { X, Lock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Lock, AlertCircle, KeyRound, CheckCircle2 } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: () => void;
+  onLoginSuccess: (apiKey: string) => void;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
+  const [savedKey, setSavedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  // Check for saved key on open
+  useEffect(() => {
+    if (isOpen) {
+        const key = localStorage.getItem('admin_master_key');
+        if (key) setSavedKey(key);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (account === '9400' && password === '9401') {
-      onLoginSuccess();
+      // If we have a saved key, use it. Otherwise, user needs to go to settings later.
+      // But for login purposes, we allow them in. The App will check for key when Saving.
+      onLoginSuccess(savedKey || '');
       setError('');
       setAccount('');
       setPassword('');
@@ -46,9 +56,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2">
-              <AlertCircle size={16} />
-              {error}
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
           
@@ -74,6 +84,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
               placeholder="請輸入密碼"
             />
           </div>
+
+          {savedKey ? (
+              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 p-2 rounded-lg text-xs font-medium">
+                  <CheckCircle2 size={14} />
+                  <span>已偵測到儲存的 API Key，登入後可直接存檔。</span>
+              </div>
+          ) : (
+              <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded-lg text-xs font-medium">
+                  <KeyRound size={14} />
+                  <span>尚未設定 API Key。登入後請至「系統設定」輸入，才能使用雲端存檔功能。</span>
+              </div>
+          )}
 
           <button 
             type="submit" 

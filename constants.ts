@@ -2,17 +2,20 @@
 import { WorkflowStep, AppConfig } from './types';
 
 // ============================================================================
-// ☁️ 雲端同步設定 (Cloud Sync Config)
-// 請填入您的 JSONBin.io 資訊以啟用跨裝置同步功能。
-// 若留空或無效，系統將自動降級為本機儲存 (LocalStorage) 模式。
+// ☁️ 雲端同步設定 (Cloud Sync Config) - 安全版
 // ============================================================================
 export const JSONBIN_CONFIG = {
-  // 1. 在 https://jsonbin.io/ 註冊並取得 API Key (X-Master-Key)
-  API_KEY: '', // 例如: '$2a$10$AbCdEfGhIjKlMnOpQrStUvWxYz1234567890'
-  
-  // 2. 建立一個新的 Bin (設為 Private)，並複製 Bin ID
+  // 1. Bin ID (必填): 這是資料的地址，公開也沒關係，因為沒有鑰匙無法修改。
   BIN_ID: '',  // 例如: '656xxxxxxxxxxxxxxxxx'
+
+  // 2. 唯讀鑰匙 (選填):
+  // 請在 JSONBin API Keys 建立一把 "Access Key"，權限只勾選 "READ"。
+  // 這把鑰匙可以安全地放在這裡，讓一般使用者讀取資料。
+  // 若您的 Bin 設為 Public (公開)，此處可留空。
+  READ_ACCESS_KEY: '', // 例如: '$2a$10$................'
 };
+
+// 注意：Master Key (寫入權限) 已從此檔案移除，將於管理者登入時手動輸入。
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   version: '2025/12/01',

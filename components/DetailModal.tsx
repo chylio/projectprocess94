@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, User, Briefcase, Building2, FileText, Phone, Edit3, Save, RotateCcw, Plus, Trash2, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { WorkflowStep, SubTask, DocItem } from '../types';
@@ -341,7 +340,7 @@ const EditableSection: React.FC<{
 }> = ({ icon, title, value, isEditing, onChange, isMultiline }) => (
     <div className="flex gap-4">
         <div className={`mt-1 p-2 rounded-lg h-fit ${isEditing ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-500'}`}>
-            {React.cloneElement(icon as React.ReactElement, { size: 20 })}
+            {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
         </div>
         <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-slate-700 mb-1">{title}</h3>
