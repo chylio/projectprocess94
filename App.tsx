@@ -18,11 +18,9 @@ const App: React.FC = () => {
   // 1. Data States
   const [workflowData, setWorkflowData] = useState<WorkflowStep[]>(WORKFLOW_DATA);
   const [appConfig, setAppConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
-  
   // 2. UI & Filter States
   const [selectedStep, setSelectedStep] = useState<WorkflowStep | null>(null);
   const [amountFilter, setAmountFilter] = useState<AmountFilter>('low');
-  
   // 3. System States
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -35,21 +33,19 @@ const App: React.FC = () => {
 
   // Helper to get effective Bin ID (Local override > Constant)
   const getEffectiveBinId = () => {
-      const custom = localStorage.getItem(CUSTOM_BIN_ID_STORAGE);
-      return custom || JSONBIN_CONFIG.BIN_ID;
+    const custom = localStorage.getItem(CUSTOM_BIN_ID_STORAGE);
+    return custom || JSONBIN_CONFIG.BIN_ID;
   };
 
   // Load Data on Mount
   useEffect(() => {
     const initData = async () => {
       setIsLoading(true);
-      
       // A. Check for Admin Key in local storage
       const savedAdminKey = localStorage.getItem(ADMIN_KEY_STORAGE);
       if (savedAdminKey) {
-          setAdminApiKey(savedAdminKey);
+        setAdminApiKey(savedAdminKey);
       }
-
       // B. Load from LocalStorage first (Fast render)
       try {
         const savedData = localStorage.getItem(STORAGE_KEY);
@@ -59,25 +55,20 @@ const App: React.FC = () => {
       } catch (error) {
         console.error("Local read error:", error);
       }
-
       // C. Cloud Fetch (READ ONLY)
       const targetBinId = getEffectiveBinId();
-      
       if (targetBinId && targetBinId.length > 5) {
         setIsCloudMode(true);
         try {
           const headers: Record<string, string> = {
             'X-Bin-Meta': 'false'
           };
-          
           if (JSONBIN_CONFIG.READ_ACCESS_KEY) {
             headers['X-Access-Key'] = JSONBIN_CONFIG.READ_ACCESS_KEY;
           }
-
           const response = await fetch(`https://api.jsonbin.io/v3/b/${targetBinId}/latest`, {
             headers: headers
           });
-          
           if (response.ok) {
             const cloudData = await response.json();
             if (cloudData.workflowData) {
@@ -92,37 +83,31 @@ const App: React.FC = () => {
           } else {
             console.warn("Cloud fetch returned:", response.status);
             if (response.status === 401 || response.status === 403) {
-                console.error("Access Denied: Please check if Bin is Public or Read Key is valid.");
+              console.error("Access Denied: Please check if Bin is Public or Read Key is valid.");
             }
           }
         } catch (e) {
           console.error("Cloud fetch failed:", e);
         }
       }
-      
       setIsLoading(false);
     };
-
     initData();
   }, []);
-
   // Save Function - Requires Admin API Key
   const saveToCloud = async (newData: WorkflowStep[], newConfig: AppConfig) => {
     // Priority: State key > LocalStorage key
     const keyToUse = adminApiKey || localStorage.getItem(ADMIN_KEY_STORAGE);
     const targetBinId = getEffectiveBinId();
-
     if (!targetBinId) {
-        console.warn("Cannot save: Missing Bin ID");
-        return;
+      console.warn("Cannot save: Missing Bin ID");
+      return;
     }
-
     if (!keyToUse) {
-        alert("無法儲存至雲端：找不到 Master Key。\n請至「系統設定」輸入您的 JSONBin Master Key。");
-        setIsSettingsOpen(true);
-        return;
+      alert("無法儲存至雲端：找不到 Master Key。\n請至「系統設定」輸入您的 JSONBin Master Key。");
+      setIsSettingsOpen(true);
+      return;
     }
-    
     setIsSaving(true);
     try {
       const response = await fetch(`https://api.jsonbin.io/v3/b/${targetBinId}`, {
@@ -136,9 +121,8 @@ const App: React.FC = () => {
           appConfig: newConfig
         })
       });
-      
       if (!response.ok) {
-          throw new Error(`Save failed: ${response.status}`);
+        throw new Error(`Save failed: ${response.status}`);
       }
     } catch (e) {
       console.error("Cloud save failed:", e);
@@ -153,15 +137,12 @@ const App: React.FC = () => {
     setSelectedStep(currentStepData);
   };
 
-  const handleCloseModal = () => {
-    setSelectedStep(null);
-  };
+  const handleCloseModal = () => setSelectedStep(null);
 
   const handleUpdateStep = (updatedStep: WorkflowStep) => {
     const newData = workflowData.map(step => 
       step.id === updatedStep.id ? updatedStep : step
     );
-    
     setWorkflowData(newData);
     setSelectedStep(updatedStep);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
@@ -189,8 +170,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsAdmin(false);
     setAdminApiKey('');
-    // We don't remove the key from LocalStorage here intentionally, 
-    // so the admin doesn't have to re-enter it next time on the same machine.
     setSelectedStep(null);
   };
 
@@ -198,14 +177,11 @@ const App: React.FC = () => {
     if (window.confirm('確定要重置所有資料 (含流程內容與版本資訊) 回到預設值嗎？此動作將覆蓋雲端資料。')) {
       const resetData = WORKFLOW_DATA;
       const resetConfig = DEFAULT_APP_CONFIG;
-      
       setWorkflowData(resetData);
       setAppConfig(resetConfig);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(resetData));
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(resetConfig));
-      
       await saveToCloud(resetData, resetConfig);
-      
       window.location.reload();
     }
   };
@@ -217,26 +193,28 @@ const App: React.FC = () => {
       {/* Save Toast */}
       {showSaveToast && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
-            <div className="bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
-                {isSaving ? <Loader2 size={14} className="animate-spin text-blue-400" /> : <Save size={14} className="text-emerald-400" />}
-                {isSaving ? '同步至雲端中...' : '變更已儲存'}
-            </div>
+          <div className="bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
+            {isSaving ? <Loader2 size={14} className="animate-spin text-blue-400" /> : <Save size={14} className="text-emerald-400" />}
+            {isSaving ? '同步至雲端中...' : '變更已儲存'}
+          </div>
         </div>
       )}
 
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* 標題與logo */}
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl w-full mx-auto px-2 sm:px-4 h-16 flex items-center justify-between">
+          {/* 左側title/logo 區 */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
               src="/深耕LOGO.png"
               alt="Logo"
-              className="h-10 mr-2"
-              style={{ width: 'auto', objectFit: 'contain', display: 'inline-block' }}
+              className="h-8 w-auto sm:h-10 mr-2 flex-shrink-0"
+              style={{ objectFit: 'contain', display: 'inline-block', maxHeight: '2.5rem' }}
             />
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">行政作業流程</h1>
-            <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-colors
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-800 tracking-tight truncate">
+              行政作業流程
+            </h1>
+            <div className={`hidden md:flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium border transition-colors
               ${isCloudMode 
                 ? 'bg-blue-50 text-blue-600 border-blue-100' 
                 : 'bg-slate-100 text-slate-500 border-slate-200'
@@ -253,10 +231,10 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
             {isAdmin ? (
                <>
-                 <span className="hidden md:flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                 <span className="hidden md:flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 sm:px-3 py-1.5 rounded-full border border-emerald-100">
                     <CheckCircle2 size={12} />
                     管理者模式
                  </span>
@@ -279,7 +257,7 @@ const App: React.FC = () => {
                  </button>
                  <button 
                     onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     <LogOut size={14} />
                     <span className="hidden md:inline">登出</span>
@@ -288,7 +266,7 @@ const App: React.FC = () => {
             ) : (
               <button 
                 onClick={() => setIsLoginOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-600 transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-600 transition-colors"
               >
                 <Lock size={14} />
                 <span>管理者登入</span>
@@ -299,8 +277,8 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-12 relative">
-        <div className="absolute left-[28px] md:left-[52px] top-[68px] bottom-32 w-0.5 bg-slate-200"></div>
+      <main className="max-w-5xl w-full mx-auto px-2 sm:px-4 py-6 sm:py-12 relative">
+        <div className="absolute left-[18px] sm:left-[28px] md:left-[52px] top-[68px] bottom-32 w-0.5 bg-slate-200"></div>
 
         {/* Loading Overlay */}
         {isLoading && (
@@ -312,7 +290,7 @@ const App: React.FC = () => {
            </div>
         )}
 
-        <div className="flex flex-col gap-8 md:gap-10">
+        <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
           {workflowData.map((step) => {
             if (step.isConditional) {
                 return (
