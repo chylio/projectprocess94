@@ -2,11 +2,14 @@
 import { WorkflowStep, AppConfig } from './types';
 
 // ============================================================================
-// ☁️ 雲端同步設定 (Cloud Sync Config) - 安全版
+// ☁️ 雲端同步設定 (Cloud Sync Config)
 // ============================================================================
 export const JSONBIN_CONFIG = {
-  // 1. Bin ID (必填): 這是資料的地址，公開也沒關係，因為沒有鑰匙無法修改。
-  BIN_ID: '',  // 例如: '656xxxxxxxxxxxxxxxxx'
+  // 1. Bin ID (必填 - 請將產生的 ID 填入此處):
+  // 這是資料的「地址」。
+  // ⚠️ 重要：管理者在「系統設定」看到的 Bin ID，必須複製貼上到這裡。
+  // 否則手機或其他訪客因為不知道 ID，會無法看到更新後的資料！
+  BIN_ID: '692c434543b1c97be9ce776a',
 
   // 2. 唯讀鑰匙 (選填):
   // 請在 JSONBin API Keys 建立一把 "Access Key"，權限只勾選 "READ"。
@@ -15,7 +18,7 @@ export const JSONBIN_CONFIG = {
   READ_ACCESS_KEY: '', // 例如: '$2a$10$................'
 };
 
-// 注意：Master Key (寫入權限) 已從此檔案移除，將於管理者登入時手動輸入。
+// 注意：Master Key (寫入權限) 絕對不要放在這裡，請於網頁上管理者登入時手動輸入。
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   version: '2025/12/01',
