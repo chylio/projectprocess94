@@ -1,0 +1,5 @@
+{
+  "name": "Admin Workflow Visualizer",
+  "description": "Interactive administrative workflow chart based on standard operating procedures.",
+  "requestFramePermissions": []
+}
