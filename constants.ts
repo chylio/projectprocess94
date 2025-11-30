@@ -9,7 +9,7 @@ export const JSONBIN_CONFIG = {
   // 這是資料的「地址」。
   // ⚠️ 重要：管理者在「系統設定」看到的 Bin ID，必須複製貼上到這裡。
   // 否則手機或其他訪客因為不知道 ID，會無法看到更新後的資料！
-  BIN_ID: '692c434543b1c97be9ce776a',
+  BIN_ID: '692c61c1d0ea881f4009accf',
 
   // 2. 唯讀鑰匙 (選填):
   // 請在 JSONBin API Keys 建立一把 "Access Key"，權限只勾選 "READ"。
