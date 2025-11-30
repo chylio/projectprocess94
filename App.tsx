@@ -212,7 +212,7 @@ const App: React.FC = () => {
               style={{ objectFit: 'contain', display: 'inline-block', maxHeight: '2.5rem' }}
             />
             <h1 className="text-lg sm:text-2xl font-bold text-slate-800 tracking-tight truncate">
-              行政作業流程
+              計畫行政作業流程
             </h1>
             <div className={`hidden md:flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium border transition-colors
               ${isCloudMode 
